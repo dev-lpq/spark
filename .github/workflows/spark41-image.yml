@@ -1,0 +1,254 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Kyuubi Spark 4.1 Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner used to build the Spark distribution and Docker image'
+        required: true
+        default: 'collab-data-platform-amd64-runners'
+        type: choice
+        options:
+          - 'collab-data-platform-amd64-runners'
+          - 'ubuntu-24.04'
+      spark_version:
+        description: 'Spark version used in the generated Docker tag. Leave empty to use project.version'
+        required: false
+        default: ''
+        type: string
+      image_target:
+        description: 'Target registry to tag and optionally push the image'
+        required: true
+        default: 'rmc'
+        type: choice
+        options:
+          - 'rmc'
+          - 'ecr'
+          - 'both'
+      image_repository:
+        description: 'Docker repository for rmc target, with or without image name'
+        required: true
+        default: 'rmc-registry-qa.webex.com/wap-dataprocessor/kyuubi-spark'
+        type: string
+      ecr_registry:
+        description: 'ECR registry host used when image_target=ecr'
+        required: true
+        default: '527856644868.dkr.ecr.us-east-2.amazonaws.com'
+        type: string
+      ecr_repository:
+        description: 'ECR repository path used when image_target=ecr, with or without image name'
+        required: true
+        default: 'webex-wap/wap-dataprocessor/kyuubi-spark'
+        type: string
+      image_tag:
+        description: 'Docker image tag. Leave empty to auto-generate one from Spark version, run number, and git SHA'
+        required: false
+        default: ''
+        type: string
+      rmc_registry:
+        description: 'Output registry host for docker login'
+        required: true
+        default: 'rmc-registry-qa.webex.com'
+        type: string
+      art_registry:
+        description: 'Base/artifact registry host for docker login'
+        required: true
+        default: 'artifactory.devhub-cloud.cisco.com'
+        type: string
+      base_image:
+        description: 'Docker base image used by Spark Dockerfile'
+        required: false
+        default: 'eclipse-temurin:17.0.19_10-jre-jammy'
+        type: string
+      dockerfile:
+        description: 'Optional custom Dockerfile path relative to repo root'
+        required: false
+        default: ''
+        type: string
+      maven_profiles:
+        description: 'Maven profiles used to build the Spark distribution'
+        required: true
+        default: '-Pyarn -Pkubernetes -Phadoop-3 -Phive -Phive-thriftserver'
+        type: string
+      distribution_name:
+        description: 'Spark distribution name used by dev/make-distribution.sh'
+        required: true
+        default: 'hadoop3'
+        type: string
+      spark_extra_jar_urls:
+        description: 'Optional override for /opt/spark/jars URLs. Leave empty to use .github/image-jars/spark-extra-jars.txt'
+        required: false
+        default: ''
+        type: string
+      docker_login:
+        description: 'Login to RMC and Artifactory registries before image build'
+        required: true
+        default: true
+        type: boolean
+      push_image:
+        description: 'Push the built image after docker build'
+        required: true
+        default: false
+        type: boolean
+      multi_arch:
+        description: 'Build and push a multi-arch image manifest'
+        required: true
+        default: false
+        type: boolean
+      platforms:
+        description: 'Platforms used when multi_arch=true'
+        required: true
+        default: 'linux/amd64,linux/arm64'
+        type: string
+      anchore_scan:
+        description: 'Run Anchore scan with syft and anchorectl after image build/push'
+        required: true
+        default: false
+        type: boolean
+      anchore_fail_on_policy_fail:
+        description: 'Fail the workflow when Anchore policy Evaluation is fail'
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: kyuubi-spark41-image-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+env:
+  ECR_KUBED_ACCOUNT: "527856644868"
+  ECR_KUBED_REGION: us-east-2
+  ECR_KUBED_ROLE: arn:aws:iam::527856644868:role/webex-wap-gha-ecr-role
+  ANCHORECTL_ACCOUNT: webex-wap
+  ANCHORECTL_URL: https://anchore.int.acmhwxt-prd-1.prod.infra.webex.com
+  ANCHORECTL_VERSION: v5.3.0
+
+jobs:
+  build-image:
+    name: Build Kyuubi Spark 4.1 Image
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout Spark repository
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: Cache SBT and Maven
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/apache-maven-*
+            build/*.jar
+            ~/.sbt
+            ~/.m2/repository
+          key: build-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/mvn', 'build/sbt', 'build/sbt-launch-lib.bash', 'build/spark-build-info') }}
+          restore-keys: |
+            build-
+
+      - name: Free up disk space
+        run: |
+          if [ -f ./dev/free_disk_space ]; then
+            ./dev/free_disk_space
+          fi
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Anchore
+        if: ${{ inputs.anchore_scan }}
+        run: |
+          set -euo pipefail
+
+          anchore_bin="${RUNNER_TEMP}/anchore/bin"
+          anchore_tmp="${RUNNER_TEMP}/anchore/tmp"
+          mkdir -p "${anchore_bin}" "${anchore_tmp}"
+
+          curl -sSfL https://anchorectl-releases.anchore.io/anchorectl/install.sh | \
+            sh -s -- -b "${anchore_bin}" "${ANCHORECTL_VERSION}"
+
+          syft_version="$("${anchore_bin}/anchorectl" version | awk '/SyftVersion/ { print $2; exit }')"
+          if [ -z "${syft_version}" ]; then
+            echo "Unable to resolve SyftVersion from anchorectl version" >&2
+            exit 1
+          fi
+
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | \
+            sh -s -- -b "${anchore_bin}" "${syft_version}"
+
+          "${anchore_bin}/anchorectl" version
+          "${anchore_bin}/syft" version
+
+      - name: Assume the AWS role
+        if: ${{ (inputs.docker_login || inputs.anchore_scan) && (inputs.image_target == 'ecr' || inputs.image_target == 'both') }}
+        uses: cisco-actions/configure-aws-credentials@v5
+        with:
+          aws-region: ${{ env.ECR_KUBED_REGION }}
+          role-to-assume: ${{ env.ECR_KUBED_ROLE }}
+          role-skip-session-tagging: true
+
+      - name: Login to Amazon ECR
+        if: ${{ (inputs.docker_login || inputs.anchore_scan) && (inputs.image_target == 'ecr' || inputs.image_target == 'both') }}
+        uses: cisco-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ env.ECR_KUBED_ACCOUNT }}
+
+      - name: Build Kyuubi Spark 4.1 Docker image
+        env:
+          SPARK_VERSION: ${{ inputs.spark_version }}
+          IMAGE_TARGET: ${{ inputs.image_target }}
+          IMAGE_REPOSITORY: ${{ inputs.image_repository }}
+          ECR_REGISTRY: ${{ inputs.ecr_registry }}
+          ECR_REPOSITORY: ${{ inputs.ecr_repository }}
+          IMAGE_NAME: kyuubi-spark
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          RMC_REGISTRY: ${{ inputs.rmc_registry }}
+          ART_REGISTRY: ${{ inputs.art_registry }}
+          BASE_IMAGE: ${{ inputs.base_image }}
+          DOCKERFILE: ${{ inputs.dockerfile }}
+          MAVEN_PROFILES: ${{ inputs.maven_profiles }}
+          DIST_NAME: ${{ inputs.distribution_name }}
+          SPARK_EXTRA_JAR_URLS_FILE: .github/image-jars/spark-extra-jars.txt
+          SPARK_EXTRA_JAR_URLS: ${{ inputs.spark_extra_jar_urls }}
+          DOCKER_LOGIN: ${{ inputs.docker_login }}
+          PUSH_IMAGE: ${{ inputs.push_image }}
+          MULTI_ARCH: ${{ inputs.multi_arch }}
+          PLATFORMS: ${{ inputs.platforms }}
+          ANCHORE_SCAN: ${{ inputs.anchore_scan }}
+          ANCHORE_FAIL_ON_POLICY_FAIL: ${{ inputs.anchore_fail_on_policy_fail }}
+          ANCHORECTL_ACCOUNT: ${{ env.ANCHORECTL_ACCOUNT }}
+          ANCHORECTL_URL: ${{ env.ANCHORECTL_URL }}
+          ANCHORECTL_USERNAME: ${{ secrets.ANCHORECTL_USERNAME }}
+          ANCHORECTL_PASSWORD: ${{ secrets.ANCHORECTL_PASSWORD }}
+          ANCHORE_TMPDIR: ${{ runner.temp }}/anchore/tmp
+          SYFT_BIN: ${{ runner.temp }}/anchore/bin/syft
+          ANCHORECTL_BIN: ${{ runner.temp }}/anchore/bin/anchorectl
+          RMC_USERNAME: ${{ secrets.RMC_USERNAME }}
+          RMC_PASSWORD: ${{ secrets.RMC_PASSWORD }}
+          ART_USERNAME: ${{ secrets.ART_USERNAME }}
+          ART_PASSWORD: ${{ secrets.ART_PASSWORD }}
+        run: bash ./.github/scripts/build_kyuubi_spark41_image.sh
