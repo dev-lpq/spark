@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-name: Kyuubi Spark 4.1 Image
+name: Spark 4.1 Image
 
 on:
   workflow_dispatch:
