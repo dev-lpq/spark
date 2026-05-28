@@ -1,7 +1,24 @@
 # Extra jars copied into /opt/spark/jars.
 # One URL per line. Blank lines and lines starting with # are ignored.
 
-https://engci-maven-master.cisco.com/artifactory/pda-snapshot/com/cisco/wap/uqs-psf/aws-sdk-downloader-1.0-SNAPSHOT.jar
-https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.2/hadoop-aws-3.4.2.jar
-https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.796/aws-java-sdk-bundle-1.12.796.jar
+https://engci-maven-master.cisco.com/artifactory/pda-snapshot/com/cisco/wap/uqs-psf/aws-sdk-downloader-no-netty-1.0-SNAPSHOT.jar
+https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.6/hadoop-aws-3.3.6.jar
+https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.797/aws-java-sdk-bundle-1.12.797.jar
 https://repo1.maven.org/maven2/commons-collections/commons-collections/3.2.2/commons-collections-3.2.2.jar
+
+ADD https://engci-maven-master.cisco.com/artifactory/pda-snapshot/com/cisco/wap/uqs-psf/iceberg-spark-runtime-4.0_2.13-1.10.0-SNAPSHOT.jar /opt/spark/jars/
+ADD https://engci-maven-master.cisco.com/artifactory/pda-snapshot/com/cisco/wap/uqs-psf/csv-serde-1.1.3-1.2.1-all.jar /opt/spark/jars/
+ADD https://engci-maven-master.cisco.com/artifactory/pda-snapshot/com/cisco/wap/uqs-psf/json-serde-1.3.8-jar-with-dependencies.jar /opt/spark/jars/
+ADD https://engci-maven-master.cisco.com/artifactory/pda-snapshot/com/cisco/wap/uqs-psf/spark-sql-jdbc-source-4.1.jar /opt/spark/jars/
+
+ADD https://repo1.maven.org/maven2/com/github/ben-manes/caffeine/caffeine/2.8.3/caffeine-2.8.3.jar /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/com/kstruct/gethostname4j/1.0.0/gethostname4j-1.0.0.jar /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws/1.8.1/iceberg-aws-1.8.1.jar  /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-jaxrs/1.9.13/jackson-jaxrs-1.9.13.jar /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/com/sun/jersey/jersey-bundle/1.19.4/jersey-bundle-1.19.4.jar /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/net/java/dev/jets3t/jets3t/0.9.4/jets3t-0.9.4.jar /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.7.0/jna-5.7.0.jar /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/net/java/dev/jna/jna-platform/5.7.0/jna-platform-5.7.0.jar /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/9.2.0/mysql-connector-j-9.2.0.jar /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/com/oracle/database/jdbc/ojdbc8/23.4.0.24.05/ojdbc8-23.4.0.24.05.jar /opt/spark/jars/
+ADD https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.3/postgresql-42.7.3.jar  /opt/spark/jars/
