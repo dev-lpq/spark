@@ -2,7 +2,7 @@
 # One URL per line. Blank lines and lines starting with # are ignored.
 
 https://engci-maven-master.cisco.com/artifactory/pda-snapshot/com/cisco/wap/uqs-psf/aws-sdk-downloader-no-netty-1.0-SNAPSHOT.jar
-https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.6/hadoop-aws-3.3.6.jar
+https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.2/hadoop-aws-3.4.2.jar
 https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.797/aws-java-sdk-bundle-1.12.797.jar
 https://repo1.maven.org/maven2/commons-collections/commons-collections/3.2.2/commons-collections-3.2.2.jar
 
