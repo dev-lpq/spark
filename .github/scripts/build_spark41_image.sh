@@ -31,7 +31,7 @@ IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-rmc-registry-qa.webex.com/wap-dataprocesso
 ECR_REGISTRY="${ECR_REGISTRY:-527856644868.dkr.ecr.us-east-2.amazonaws.com}"
 ECR_REPOSITORY="${ECR_REPOSITORY:-webex-wap/wap-dataprocessor/${IMAGE_NAME}}"
 GIT_SHORT_SHA="${GITHUB_SHA:-$(git rev-parse --short HEAD 2>/dev/null || echo local)}"
-GIT_SHORT_SHA="${GIT_SHORT_SHA:0:7}"
+GIT_SHORT_SHA="${GIT_SHORT_SHA:0:4}"
 BUILD_NUMBER="${GITHUB_RUN_NUMBER:-$(date -u +%Y%m%d%H%M%S)}"
 BUILD_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
 IMAGE_TAG="${IMAGE_TAG:-}"
@@ -190,7 +190,8 @@ function resolve_spark_version {
   export SPARK_VERSION
 
   if [[ -z "${IMAGE_TAG}" ]]; then
-    IMAGE_TAG="kyuubi-spark-${SPARK_VERSION}-r${BUILD_NUMBER}-a${BUILD_ATTEMPT}-${GIT_SHORT_SHA}"
+    local image_tag_version="${SPARK_VERSION%-SNAPSHOT}"
+    IMAGE_TAG="${image_tag_version}-r${BUILD_NUMBER}-${GIT_SHORT_SHA}"
   fi
   export IMAGE_TAG
   echo "image_tag=${IMAGE_TAG}"
